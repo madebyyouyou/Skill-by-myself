@@ -1,0 +1,5 @@
+# 本地 Claude 配置与已安装 skill 副本 —— 含绝对路径、用户名、权限缓存,绝不公开
+.claude/
+
+# skill 打包备份(冗余,发布源以 skills/ 为准)
+*.zip
