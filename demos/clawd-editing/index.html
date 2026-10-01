@@ -1,0 +1,1215 @@
+<title>Clawd 剪片记</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap">
+<style>
+/* Layout: one 16:9 screen as the hero, playback controls and chapter list stacked beneath it */
+:root{
+  --bg:#eceff4; --panel:#ffffff; --fg:#1a2030; --muted:#596274; --line:#d3d8e1; --accent:#bf5b37; --accent-fg:#ffffff;
+  --font-display:"ZCOOL KuaiLe","PingFang SC","Noto Sans SC",sans-serif;
+  --font-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --mac:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10131a; --panel:#181c25; --fg:#e6e9ef; --muted:#97a0b0; --line:#2a303c; --accent:#e58b69; --accent-fg:#1d0f09; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10131a; --panel:#181c25; --fg:#e6e9ef; --muted:#97a0b0; --line:#2a303c; --accent:#e58b69; --accent-fg:#1d0f09; color-scheme:dark}
+
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--font-body)}
+.page{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;gap:16px}
+.head h1{font-family:var(--font-display);font-weight:400;font-size:clamp(28px,4.2vw,42px);line-height:1.1;margin:0;letter-spacing:.03em;text-wrap:balance}
+.head p{margin:8px 0 0;color:var(--muted);line-height:1.65;max-width:62ch}
+
+.viewport{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0c1120;
+  box-shadow:0 14px 40px rgb(10 14 30 / .22),0 0 0 1px var(--line)}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;font-family:var(--mac);user-select:none}
+#world{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0}
+#wall{position:absolute;left:0;top:0;width:1280px;height:720px}
+
+.caption{min-height:1.6em;font-size:17px;font-weight:500;line-height:1.6;transition:opacity .25s}
+.caption .step{font-family:var(--font-mono);font-size:13px;color:var(--accent);margin-right:10px;letter-spacing:.04em}
+
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--fg);height:36px;min-width:36px;padding:0 12px;border-radius:9px;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;font:500 14px/1 var(--font-body);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.chap:focus-visible,#scrub:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.scrub{position:relative;flex:1 1 240px;min-width:0;height:36px;display:flex;align-items:center}
+#scrub{width:100%;margin:0;accent-color:var(--accent);cursor:pointer}
+.ticks{position:absolute;left:8px;right:8px;top:4px;height:6px;pointer-events:none}
+.ticks i{position:absolute;top:0;width:2px;height:6px;border-radius:1px;background:var(--muted);opacity:.6}
+.time{font-family:var(--font-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:9.5ch;text-align:right}
+
+.chapters{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.chap{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:10px;padding:10px 12px;cursor:pointer;
+  font:500 14px/1.3 var(--font-body);display:flex;gap:10px;align-items:baseline}
+.chap b{font-family:var(--font-mono);font-weight:500;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chap.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.chap.on b{color:var(--accent)}
+
+/* ---------- macOS screen (a fixed illustration, same in both themes) ---------- */
+.menubar{position:absolute;left:0;top:0;width:1280px;height:26px;box-sizing:border-box;padding:0 16px;display:flex;align-items:center;gap:20px;
+  background:rgb(18 24 42 / .5);backdrop-filter:blur(14px);color:#f1f3f8;font:500 13px/1 var(--mac)}
+.menubar .app{font-weight:700}
+.menubar .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.menubar svg{width:16px;height:16px;fill:#f1f3f8}
+
+.dock{position:absolute;left:410px;top:648px;width:460px;height:64px;box-sizing:border-box;border-radius:18px;
+  background:rgb(255 255 255 / .17);border:1px solid rgb(255 255 255 / .3);backdrop-filter:blur(16px)}
+.dock .ic{position:absolute;top:5px;width:52px;height:52px;transform-origin:50% 100%}
+.dock .ic svg{width:52px;height:52px;display:block}
+.dock .dot{position:absolute;left:24px;top:56px;width:4px;height:4px;border-radius:50%;background:#eef1f6}
+.dock .sep{position:absolute;left:389px;top:10px;width:1px;height:44px;background:rgb(255 255 255 / .35)}
+
+.desk-file{position:absolute;left:1158px;top:128px;width:84px;display:grid;justify-items:center;gap:4px;opacity:0}
+.desk-file svg{width:52px;height:52px}
+.desk-file span{font-size:11px;color:#fff;padding:1px 5px;border-radius:4px;background:rgb(59 130 246 / .9)}
+#flyFile{position:absolute;left:0;top:0;width:52px;height:52px;opacity:0}
+
+.notif{position:absolute;left:916px;top:36px;width:340px;height:66px;box-sizing:border-box;border-radius:14px;padding:12px 14px;
+  display:flex;gap:12px;align-items:center;background:rgb(44 48 60 / .86);backdrop-filter:blur(18px);border:1px solid rgb(255 255 255 / .12);
+  color:#f2f4f8;box-shadow:0 10px 30px rgb(0 0 0 / .35);opacity:0}
+.notif svg{width:38px;height:38px;flex:none}
+.notif b{display:block;font-size:13px}
+.notif span{font-size:12px;color:#c6cbd6}
+
+/* ---------- ReelCut window (coordinates are window-local px) ---------- */
+.win{position:absolute;left:120px;top:40px;width:1040px;height:580px;border-radius:12px;overflow:hidden;background:#1a1c21;color:#c6cad3;
+  font:12px/1.3 var(--mac);box-shadow:0 30px 80px rgb(0 0 0 / .55),0 0 0 1px rgb(255 255 255 / .09);transform-origin:50% 50%;opacity:0}
+.win .abs{position:absolute}
+.titlebar{left:0;top:0;width:1040px;height:38px;background:#25282f;border-bottom:1px solid #111216}
+.lights{left:14px;top:13px;display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}
+.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.wtitle{left:0;top:12px;width:1040px;text-align:center;color:#dadde3;font-weight:600;font-size:13px}
+.export-btn{left:930px;top:6px;width:94px;height:26px;border-radius:7px;background:#3b82f6;color:#fff;font-weight:600;font-size:13px;
+  display:grid;place-items:center;transform-origin:50% 100%}
+.pnl{background:#1f2228;box-sizing:border-box;border-right:1px solid #111216;border-bottom:1px solid #111216}
+.tabs{left:14px;top:46px;display:flex;gap:16px;font-size:12px;color:#7f8693}
+.tabs b{color:#e6e8ec;font-weight:600}
+.thumb{width:105px;height:60px;border-radius:6px;overflow:hidden;background:#000;box-shadow:0 0 0 1px #33373f}
+.thumb canvas{width:105px;height:60px;display:block}
+.thumb.sel{box-shadow:0 0 0 2px #3b82f6}
+.tlabel{width:105px;font-size:11px;color:#aeb3bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sect{font-size:11px;color:#7f8693;letter-spacing:.06em}
+.chip{width:105px;height:34px;box-sizing:border-box;border-radius:7px;background:#2a2e36;border:1px solid #3a3f49;display:flex;align-items:center;
+  gap:7px;padding:0 9px;color:#dfe2e8;font-weight:500}
+.chip i{font-style:normal;width:18px;height:18px;border-radius:4px;display:grid;place-items:center;font-size:11px;font-weight:700}
+.chip.sel{border-color:#3b82f6}
+#viewer{left:312px;top:50px;width:416px;height:234px;background:#000;border-radius:2px}
+.tc{font-family:var(--font-mono);font-size:12px;color:#e4e6ea;font-variant-numeric:tabular-nums}
+.playbtn{left:505px;top:292px;width:30px;height:30px;border-radius:50%;background:#30343c;display:grid;place-items:center;transform-origin:50% 100%}
+.playbtn svg{width:12px;height:12px;fill:#eef0f3}
+.insp-h{left:806px;top:50px;font-weight:600;color:#e6e8ec;font-size:12px}
+.insp-name{left:806px;top:76px;width:220px;font-size:14px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.insp-row{left:806px;width:140px;display:flex;justify-content:space-between;font-size:12px}
+.insp-row span{color:#7f8693}
+.insp-row b{font-weight:500;color:#d7dae0;font-variant-numeric:tabular-nums}
+.tool{top:334px;width:28px;height:24px;border-radius:6px;display:grid;place-items:center;color:#bfc4cc}
+.tool svg{width:15px;height:15px}
+.tool.on{background:#3b82f6;color:#fff}
+.tl-title{left:120px;top:340px;color:#9aa0ab}
+.trk{left:0;width:80px;box-sizing:border-box;padding-left:12px;display:flex;align-items:center;gap:6px;background:#1f2228;color:#9aa0ab;font-weight:600}
+.trk em{font-style:normal;font-family:var(--font-mono);font-size:10px;color:#6c7380}
+.lane{left:80px;width:960px;background:#1b1d22;border-top:1px solid #15161a}
+.clip{position:absolute;box-sizing:border-box;border-radius:5px;overflow:hidden;border:1px solid;transform-origin:50% 100%;opacity:0}
+.clip.v{top:430px;height:60px;background-color:#284a7e;border-color:#5f8fd6;background-repeat:repeat-x;background-size:auto 100%}
+.clip.t{top:386px;height:40px;background:#7a4f10;border-color:#e0a03a}
+.clip.a{top:494px;height:46px;background-color:#1c5546;border-color:#3cb48e;background-repeat:repeat-x;background-size:auto 100%;background-position:0 50%}
+.clip span{position:absolute;left:5px;top:4px;max-width:calc(100% - 10px);font-size:10.5px;font-weight:600;color:#fff;background:rgb(0 0 0 / .45);
+  padding:1px 5px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clip.t span{background:none;top:12px}
+.xfade{top:449px;width:40px;height:22px;background:rgb(240 243 248 / .92);clip-path:polygon(0 0,50% 45%,100% 0,100% 100%,50% 55%,0 100%);opacity:0}
+.cutline{top:428px;width:2px;height:64px;background:#fff;box-shadow:0 0 12px 3px rgb(255 255 255 / .8);opacity:0}
+.playhead{top:362px;width:2px;height:218px;background:#ff4f4f;z-index:3}
+.playhead::before{content:"";position:absolute;left:-5px;top:0;width:12px;height:12px;background:#ff4f4f;clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%)}
+.splash{left:0;top:0;width:1040px;height:580px;background:#15171b;display:grid;place-content:center;justify-items:center;gap:14px;color:#e8eaee;opacity:0}
+.splash svg{width:84px;height:84px}
+.splash b{font-size:26px;letter-spacing:.04em}
+.splash span{font-size:12px;color:#8a909b}
+.sheet{left:320px;top:38px;width:400px;height:210px;box-sizing:border-box;background:#2a2d34;border:1px solid #3c404a;border-top:none;
+  border-radius:0 0 12px 12px;box-shadow:0 18px 40px rgb(0 0 0 / .5);transform-origin:50% 0;opacity:0}
+.sheet h4{position:absolute;left:20px;top:14px;margin:0;font-size:14px;color:#fff}
+.sheet canvas{position:absolute;left:20px;top:46px;width:128px;height:72px;border-radius:4px}
+.sheet .f{position:absolute;left:164px;display:flex;gap:10px;font-size:12px}
+.sheet .f span{color:#868c98;width:44px}
+.sheet .f b{color:#e2e5ea;font-weight:500;font-variant-numeric:tabular-nums}
+.sheet .prog{position:absolute;left:20px;top:132px;width:360px;opacity:0}
+.sheet .prog div{display:flex;justify-content:space-between;font-size:12px;color:#d9dce2;font-variant-numeric:tabular-nums}
+.sheet .bar{margin-top:8px;height:6px;border-radius:3px;background:#3a3e48;overflow:hidden}
+.sheet .bar i{display:block;height:100%;width:0;background:#3b82f6}
+.sheet .sb{position:absolute;top:166px;width:84px;height:28px;border-radius:7px;display:grid;place-items:center;font-weight:600;font-size:13px;transform-origin:50% 100%}
+.sheet .cancel{left:206px;background:#3a3e48;color:#dfe2e8}
+.sheet .go{left:300px;background:#3b82f6;color:#fff}
+
+/* ---------- Clawd ---------- */
+#clawd{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;z-index:20}
+#clawd svg.body{position:absolute;left:-48px;top:-72px;width:96px;height:72px;overflow:visible}
+#carry{position:absolute;left:-52px;top:-124px;width:104px;height:60px;border-radius:8px;overflow:hidden;box-shadow:0 0 0 3px #fff,0 6px 14px rgb(0 0 0 / .35);
+  background-size:cover;background-position:center;display:none}
+#carry.chip{height:44px;top:-110px;display:none;place-items:center;font:700 22px/1 var(--mac);color:#fff}
+#tool{position:absolute;left:30px;top:-62px;width:40px;height:40px;transform-origin:20% 90%;display:none}
+#fx{position:absolute;left:0;top:0;width:1280px;height:720px;pointer-events:none;z-index:21}
+#fx i{position:absolute;left:0;top:0;display:block;will-change:transform,opacity}
+
+@media (max-width:560px){.caption{font-size:15px}.btn{padding:0 10px}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ico-reel" viewBox="0 0 52 52">
+    <rect width="52" height="52" rx="12" fill="#1c2130"/>
+    <rect x="9" y="20" width="34" height="23" rx="3" fill="#2f3854"/>
+    <path d="M9 13.5 42 9.4l1.1 7.1-33 4.1z" fill="#f3f3f3"/>
+    <path d="M13.5 13 18.6 12.3 15.7 19.6 10.6 20.3zM23.6 11.7 28.7 11 25.8 18.3 20.7 19zM33.7 10.5 38.8 9.8 35.9 17.1 30.8 17.8z" fill="#1c2130"/>
+    <path d="M22 26.5 32.5 31.5 22 36.5z" fill="#E8875F"/>
+  </symbol>
+  <symbol id="ico-mp4" viewBox="0 0 52 52">
+    <path d="M11 3h21l10 10v36H11z" fill="#f4f5f7"/>
+    <path d="M32 3v10h10z" fill="#cfd4dc"/>
+    <path d="M22 17.5 32 23l-10 5.5z" fill="#5a6070"/>
+    <rect x="11" y="35" width="31" height="10" fill="#E8875F"/>
+    <text x="26.5" y="43" font-size="8" font-weight="700" text-anchor="middle" fill="#fff" font-family="Menlo,monospace">MP4</text>
+  </symbol>
+  <symbol id="ico-scissors" viewBox="0 0 20 20">
+    <circle cx="5.5" cy="15" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="14.5" cy="15" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M7.2 12.4 14.6 1.5M12.8 12.4 5.4 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<main class="page">
+  <header class="head">
+    <h1>Clawd 剪片记</h1>
+    <p>Clawd 在 Mac 桌面上点开剪辑软件 ReelCut，跳进软件里，自己把三段素材剪成一支 17.5 秒的 Vlog，然后导出到桌面。</p>
+  </header>
+
+  <div class="viewport" id="viewport" role="img" aria-label="动画：Clawd 打开剪辑软件、剪辑视频并导出">
+    <div id="stage">
+      <div id="world">
+        <canvas id="wall" width="1280" height="720"></canvas>
+
+        <div class="menubar">
+          <span class="app" id="menuApp">访达</span><span>文件</span><span>编辑</span><span>显示</span><span>窗口</span><span>帮助</span>
+          <span class="right">
+            <svg viewBox="0 0 16 16"><path d="M8 12.5a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM3.3 9.6a6.6 6.6 0 0 1 9.4 0l-1.2 1.2a4.9 4.9 0 0 0-7 0zM.8 7a10.2 10.2 0 0 1 14.4 0L14 8.2a8.5 8.5 0 0 0-12 0z"/></svg>
+            <svg viewBox="0 0 16 16"><rect x="1" y="5" width="12" height="7" rx="2" fill="none" stroke="#f1f3f8" stroke-width="1.2"/><rect x="2.6" y="6.6" width="8" height="3.8" rx="1"/><rect x="13.6" y="7.2" width="1.4" height="2.6" rx=".6"/></svg>
+            <span>10月1日 周四 <span id="clockTxt">10:05</span></span>
+          </span>
+        </div>
+
+        <div class="desk-file" id="deskFile"><svg><use href="#ico-mp4"/></svg><span>clawd_vlog.mp4</span></div>
+
+        <div class="win" id="win">
+          <div class="abs titlebar"></div>
+          <div class="abs lights"><i></i><i></i><i></i></div>
+          <div class="abs wtitle">ReelCut — Clawd 的 Vlog</div>
+          <div class="abs export-btn" id="exportBtn">导出</div>
+
+          <div class="abs pnl" style="left:0;top:38px;width:250px;height:292px"></div>
+          <div class="abs pnl" style="left:250px;top:38px;width:540px;height:292px;background:#16181c"></div>
+          <div class="abs pnl" style="left:790px;top:38px;width:250px;height:292px;border-right:none"></div>
+          <div class="abs pnl" style="left:0;top:330px;width:1040px;height:250px;background:#17191d;border:none"></div>
+
+          <div class="abs tabs"><b>素材</b><span>音频</span><span>效果</span></div>
+          <div class="abs thumb" id="thA" style="left:14px;top:76px"><canvas width="210" height="120"></canvas></div>
+          <div class="abs thumb" id="thB" style="left:131px;top:76px"><canvas width="210" height="120"></canvas></div>
+          <div class="abs thumb" id="thC" style="left:14px;top:172px"><canvas width="210" height="120"></canvas></div>
+          <div class="abs thumb" id="thM" style="left:131px;top:172px"><canvas width="210" height="120"></canvas></div>
+          <div class="abs tlabel" style="left:14px;top:140px">海边日落.mov</div>
+          <div class="abs tlabel" style="left:131px;top:140px">城市夜景.mov</div>
+          <div class="abs tlabel" style="left:14px;top:236px">山间云海.mov</div>
+          <div class="abs tlabel" style="left:131px;top:236px">轻快 BGM.m4a</div>
+          <div class="abs sect" style="left:14px;top:255px">效果</div>
+          <div class="abs chip" id="chipX" style="left:14px;top:272px"><i style="background:#e9edf3;color:#1d2230">⋈</i>交叉溶解</div>
+          <div class="abs chip" id="chipT" style="left:131px;top:272px"><i style="background:#e0a03a;color:#2b1a02">T</i>标题</div>
+
+          <canvas class="abs" id="viewer" width="832" height="468"></canvas>
+          <div class="abs tc" id="tcNow" style="left:312px;top:300px">00:00:00:00</div>
+          <div class="abs playbtn" id="playBtnApp"><svg viewBox="0 0 12 12" id="playGlyph"><path d="M2 1 11 6 2 11z"/></svg></div>
+          <div class="abs tc" id="tcDur" style="left:628px;top:300px;width:100px;text-align:right;color:#7f8693">00:00:00:00</div>
+
+          <div class="abs insp-h">检查器</div>
+          <div class="abs insp-name" id="inspName">未选择片段</div>
+          <div class="abs insp-row" style="top:108px"><span>时长</span><b id="inspDur">—</b></div>
+          <div class="abs insp-row" style="top:132px"><span>分辨率</span><b id="inspRes">—</b></div>
+          <div class="abs insp-row" style="top:156px"><span>帧率</span><b id="inspFps">—</b></div>
+          <div class="abs insp-row" style="top:180px"><span>不透明度</span><b>100%</b></div>
+          <div class="abs insp-row" style="top:204px"><span>速度</span><b>1.0×</b></div>
+
+          <div class="abs tool on" id="toolSel" style="left:12px"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5 13 9H8.3l2.6 5.2-1.8.9L6.5 9.8 3 13z"/></svg></div>
+          <div class="abs tool" id="toolBlade" style="left:44px"><svg><use href="#ico-scissors"/></svg></div>
+          <div class="abs tool" style="left:76px"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h3v6a2 2 0 0 0 4 0V2h3v6a5 5 0 0 1-10 0zM3 2v2h3V2zm7 0v2h3V2z"/></svg></div>
+          <div class="abs tl-title">时间线 · Clawd 的 Vlog</div>
+          <canvas class="abs" id="ruler" width="1900" height="40" style="left:80px;top:362px;width:950px;height:20px"></canvas>
+          <div class="abs trk" style="top:386px;height:40px">字幕 <em>V2</em></div>
+          <div class="abs trk" style="top:430px;height:60px">视频 <em>V1</em></div>
+          <div class="abs trk" style="top:494px;height:46px">音频 <em>A1</em></div>
+          <div class="abs lane" style="top:386px;height:40px"></div>
+          <div class="abs lane" style="top:430px;height:60px"></div>
+          <div class="abs lane" style="top:494px;height:46px"></div>
+          <div id="clips"></div>
+          <div class="abs xfade" id="xfade"></div>
+          <div class="abs cutline" id="cutline"></div>
+          <div class="abs playhead" id="playhead"></div>
+
+          <div class="abs splash" id="splash"><svg><use href="#ico-reel"/></svg><b>ReelCut</b><span>正在载入素材…</span></div>
+
+          <div class="abs sheet" id="sheet">
+            <h4>导出影片</h4>
+            <canvas id="sheetThumb" width="256" height="144"></canvas>
+            <div class="f" style="top:48px"><span>文件名</span><b>clawd_vlog.mp4</b></div>
+            <div class="f" style="top:70px"><span>格式</span><b>MP4 · H.264</b></div>
+            <div class="f" style="top:92px"><span>分辨率</span><b>1920×1080 · 30fps</b></div>
+            <div class="f" style="top:114px"><span>时长</span><b>00:00:17:15</b></div>
+            <div class="prog" id="prog"><div><span id="progTxt">正在导出…</span><span id="progPct">0%</span></div><div class="bar"><i id="progBar"></i></div></div>
+            <div class="sb cancel">取消</div>
+            <div class="sb go" id="sheetGo">导出</div>
+          </div>
+        </div>
+
+        <div class="dock" id="dock">
+          <div class="ic" style="left:12px"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#2f7cf6"/><path d="M10 16h12l3 3h17v20H10z" fill="#9cc6ff"/><path d="M10 22h32v17H10z" fill="#e2eeff"/><path d="M20 29q6 4 12 0" stroke="#2f7cf6" stroke-width="2" fill="none" stroke-linecap="round"/></svg><i class="dot"></i></div>
+          <div class="ic" style="left:76px"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#f3f5f9"/><circle cx="26" cy="26" r="18" fill="#2a9bf0"/><path d="M33 19 28 28 19 33 24 24z" fill="#fff"/><path d="M33 19 28 28 24 24z" fill="#ff4b4b"/></svg></div>
+          <div class="ic" style="left:140px"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#fbfbfd"/><g transform="translate(26 26)" opacity=".88"><ellipse cy="-9" rx="6" ry="10" fill="#f7b32b"/><ellipse cy="-9" rx="6" ry="10" fill="#f2683a" transform="rotate(60)"/><ellipse cy="-9" rx="6" ry="10" fill="#d9427a" transform="rotate(120)"/><ellipse cy="-9" rx="6" ry="10" fill="#7a5ce0" transform="rotate(180)"/><ellipse cy="-9" rx="6" ry="10" fill="#2ea3e6" transform="rotate(240)"/><ellipse cy="-9" rx="6" ry="10" fill="#57c26a" transform="rotate(300)"/></g></svg></div>
+          <div class="ic" style="left:204px"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#f43f5e"/><path d="M21 14 36 11v20a4.5 4.5 0 1 1-2.6-4.1V17.4l-9.8 2V34a4.5 4.5 0 1 1-2.6-4.1z" fill="#fff"/></svg></div>
+          <div class="ic" id="icReel" style="left:268px"><svg><use href="#ico-reel"/></svg><i class="dot" id="reelDot" style="opacity:0"></i></div>
+          <div class="ic" style="left:332px"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#22262e"/><rect x="1" y="1" width="50" height="50" rx="11" fill="none" stroke="#4a505c"/><path d="M12 17l7 5-7 5" stroke="#e9ecf1" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 30h10" stroke="#e9ecf1" stroke-width="2.6" stroke-linecap="round"/></svg></div>
+          <i class="sep"></i>
+          <div class="ic" style="left:396px"><svg viewBox="0 0 52 52"><path d="M14 13h24l-2.5 34h-19z" fill="#dfe3ea" stroke="#9aa2b0"/><path d="M12 10h28v4H12z" fill="#c7ccd5"/><path d="M20 18v25M26 18v25M32 18v25" stroke="#a7aebb" stroke-width="1.6"/></svg></div>
+        </div>
+
+        <div class="notif" id="notif"><svg><use href="#ico-reel"/></svg><div><b>导出完成</b><span>clawd_vlog.mp4 · 1080p · 17.5 秒，已存到桌面</span></div></div>
+        <svg id="flyFile"><use href="#ico-mp4"/></svg>
+
+        <div id="fx"></div>
+
+        <div id="clawd">
+          <div id="carry"></div>
+          <svg class="body" viewBox="-1 -5 24 18" shape-rendering="crispEdges">
+            <g fill="#D97757">
+              <rect id="armL" x="0" y="4" width="3" height="3"/>
+              <rect id="armR" x="19" y="4" width="3" height="3"/>
+              <rect x="3" y="0" width="16" height="9.5"/>
+              <rect id="leg0" x="4" y="9" width="2" height="4"/>
+              <rect id="leg1" x="7" y="9" width="2" height="4"/>
+              <rect id="leg2" x="13" y="9" width="2" height="4"/>
+              <rect id="leg3" x="16" y="9" width="2" height="4"/>
+            </g>
+            <rect id="eyeL" x="6" y="2" width="2" height="3" fill="#1b1817"/>
+            <rect id="eyeR" x="14" y="2" width="2" height="3" fill="#1b1817"/>
+          </svg>
+          <svg id="tool" style="color:#f2f4f7"><use href="#ico-scissors"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption" aria-live="polite"></div>
+
+  <div class="controls">
+    <button class="btn primary" id="playBtn" aria-label="暂停"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2h3v12H4zM9 2h3v12H9z"/></svg><span id="playLbl">暂停</span></button>
+    <button class="btn" id="restartBtn" aria-label="从头播放"><svg viewBox="0 0 16 16"><path d="M8 2.5a5.5 5.5 0 1 1-5.2 7.3l1.8-.6A3.6 3.6 0 1 0 8 4.4V6.6L4.6 3.5 8 .5z"/></svg>重播</button>
+    <div class="scrub"><input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="进度"><div class="ticks" id="ticks"></div></div>
+    <span class="time" id="timeTxt">0.0 / 0.0 秒</span>
+    <button class="btn" id="speedBtn" aria-label="播放速度">1×</button>
+  </div>
+
+  <ol class="chapters" id="chapters"></ol>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= utilities ================= */
+const $ = id => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const inv = (a, b, v) => clamp((v - a) / (b - a));
+const PI = Math.PI;
+const ease = {
+  inOut: k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2,
+  out: k => 1 - Math.pow(1 - k, 3),
+  in: k => k * k,
+  sine: k => -(Math.cos(PI * k) - 1) / 2,
+  back: k => { const c = 1.9, c3 = c + 1; return 1 + c3 * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+};
+function rng(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const hash = n => { const r = rng(n * 9301 + 49297); r(); return r(); };
+const FPS = 30, PX = 40, LANE0 = 90;           // timeline: 40px per second, lane starts at window x 90
+const WX = 120, WY = 40;                         // window origin on the screen
+function tc(sec) {
+  const f = Math.max(0, Math.round(sec * FPS));
+  const ff = f % FPS, s = Math.floor(f / FPS) % 60, m = Math.floor(f / FPS / 60);
+  const p = n => String(n).padStart(2, '0');
+  return `00:${p(m)}:${p(s)}:${p(ff)}`;
+}
+
+/* ================= the three source clips, drawn procedurally ================= */
+const SCENES = {
+  A(ctx, w, h, vt) {            // 海边日落
+    const hz = h * .62;
+    const sky = ctx.createLinearGradient(0, 0, 0, hz);
+    sky.addColorStop(0, '#2a1d46'); sky.addColorStop(.55, '#b44f6e'); sky.addColorStop(1, '#f6a05d');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, hz);
+    const sx = w * .62, sy = h * (.44 + vt * .007), r = h * .13;
+    const glow = ctx.createRadialGradient(sx, sy, r * .3, sx, sy, r * 3.2);
+    glow.addColorStop(0, 'rgba(255,214,140,.6)'); glow.addColorStop(1, 'rgba(255,214,140,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, w, hz);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, hz); ctx.clip();
+    ctx.fillStyle = '#ffdb8c'; ctx.beginPath(); ctx.arc(sx, sy, r, 0, PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#4b2747';
+    ctx.beginPath(); ctx.moveTo(-w * .05, hz); ctx.quadraticCurveTo(w * .13, h * .48, w * .32, hz); ctx.fill();
+    const sea = ctx.createLinearGradient(0, hz, 0, h);
+    sea.addColorStop(0, '#5d3456'); sea.addColorStop(1, '#1c1530');
+    ctx.fillStyle = sea; ctx.fillRect(0, hz, w, h - hz);
+    ctx.fillStyle = 'rgba(255,212,140,.75)';
+    for (let i = 0; i < 9; i++) {
+      const ww = w * (.17 - i * .013) * (.75 + .25 * Math.sin(vt * 3 + i * 1.7));
+      ctx.fillRect(sx - ww / 2 + Math.sin(vt * 2 + i) * w * .012, h * (.65 + i * .037), ww, h * .012);
+    }
+    ctx.strokeStyle = '#2a1a33'; ctx.lineWidth = Math.max(1, h * .008); ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {   // gulls drifting across
+      const bx = ((vt * .06 + i * .23) % 1.2 - .1) * w, by = h * (.2 + i * .07), bs = h * .025;
+      ctx.beginPath(); ctx.moveTo(bx - bs, by); ctx.quadraticCurveTo(bx - bs * .4, by - bs * .8, bx, by);
+      ctx.quadraticCurveTo(bx + bs * .4, by - bs * .8, bx + bs, by); ctx.stroke();
+    }
+  },
+  B(ctx, w, h, vt) {            // 城市夜景
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#070f27'); sky.addColorStop(.7, '#24376b'); sky.addColorStop(1, '#3d4f86');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+    const st = rng(11);
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${.3 + .5 * hash(i + Math.floor(vt * 2))})`;
+      ctx.fillRect(st() * w, st() * h * .5, h * .007, h * .007);
+    }
+    ctx.fillStyle = '#efe8d0'; ctx.beginPath(); ctx.arc(w * .8, h * .2, h * .07, 0, PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a3b6e'; ctx.beginPath(); ctx.arc(w * .82, h * .19, h * .06, 0, PI * 2); ctx.fill();
+    for (let layer = 0; layer < 2; layer++) {
+      const r = rng(layer ? 23 : 5), pan = vt * w * (layer ? .022 : .01);
+      let x = -pan % (w * .5) - w * .2, b = 0;
+      while (x < w * 1.05) {
+        const bw = w * (.06 + r() * .08), bh = h * (layer ? .3 + r() * .38 : .45 + r() * .3);
+        const top = h - bh;
+        ctx.fillStyle = layer ? '#0c1430' : '#1a2550';
+        ctx.fillRect(x, top, bw - w * .006, bh);
+        if (layer) {
+          const cols = Math.max(2, Math.floor(bw / (w * .018))), rows = Math.floor(bh / (h * .05));
+          for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+            const lit = hash(b * 131 + i * 17 + j * 7 + Math.floor(vt * .8 + (i + j) * .13)) > .55;
+            if (!lit) continue;
+            ctx.fillStyle = hash(b + j) > .5 ? '#ffd27a' : '#9fd3ff';
+            ctx.fillRect(x + w * .008 + i * (bw - w * .016) / cols, top + h * .03 + j * h * .05, w * .008, h * .022);
+          }
+        }
+        x += bw; b++;
+      }
+    }
+  },
+  C(ctx, w, h, vt) {            // 山间云海
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#76a2d4'); sky.addColorStop(.6, '#cfe0ee'); sky.addColorStop(1, '#f5e8d6');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+    const sun = ctx.createRadialGradient(w * .24, h * .22, 0, w * .24, h * .22, h * .5);
+    sun.addColorStop(0, 'rgba(255,248,225,.95)'); sun.addColorStop(.2, 'rgba(255,248,225,.5)'); sun.addColorStop(1, 'rgba(255,248,225,0)');
+    ctx.fillStyle = sun; ctx.fillRect(0, 0, w, h);
+    const ridge = (seed, base, amp, col) => {
+      const r = rng(seed); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, h);
+      let x = 0; ctx.lineTo(0, base * h);
+      while (x < w) { const nx = x + w * (.08 + r() * .1); ctx.lineTo((x + nx) / 2, (base - amp * (.4 + r() * .6)) * h); ctx.lineTo(nx, base * h); x = nx; }
+      ctx.lineTo(w, h); ctx.fill();
+    };
+    ridge(3, .62, .32, '#8ea4bd');
+    ridge(8, .7, .38, '#4f6a82');
+    for (let i = 0; i < 14; i++) {
+      const cx = ((i * .13 + vt * .012 * (1 + i % 3 * .4)) % 1.3 - .15) * w;
+      const cy = h * (.66 + (i % 4) * .05), rx = w * (.12 + (i % 3) * .04), ry = h * (.06 + (i % 2) * .03);
+      ctx.fillStyle = `rgba(255,255,255,${.75 + (i % 3) * .08})`;
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(0, h * .84, w, h * .16);
+  },
+};
+function drawTitle(ctx, w, h, text, caret) {
+  if (!text && !caret) return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,8,20,.28)'; ctx.fillRect(0, h * .2, w, h * .26);
+  ctx.font = `700 ${Math.round(h * .1)}px "Noto Sans SC","PingFang SC",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = h * .04; ctx.fillStyle = '#fff';
+  ctx.fillText(text, w / 2, h * .3);
+  if (caret) { const tw = ctx.measureText(text).width; ctx.fillRect(w / 2 + tw / 2 + h * .01, h * .25, h * .008, h * .1); }
+  ctx.shadowBlur = 0; ctx.font = `500 ${Math.round(h * .045)}px "JetBrains Mono",Menlo,monospace`;
+  ctx.fillStyle = 'rgba(255,240,220,.9)'; ctx.fillText('2026.10.01', w / 2, h * .4);
+  ctx.restore();
+}
+function drawWave(ctx, w, h, seed, col) {
+  const r = rng(seed); ctx.fillStyle = col;
+  for (let x = 0; x < w; x += 4) {
+    const env = .35 + .65 * Math.abs(Math.sin(x / w * PI * 3 + 1));
+    const a = (.25 + r() * .75) * env * h * .42;
+    ctx.fillRect(x, h / 2 - a, 2.5, a * 2);
+  }
+}
+function drawMusicThumb(ctx, w, h) {
+  const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#17473b'); g.addColorStop(1, '#0d2a24');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  drawWave(ctx, w, h, 4, 'rgba(74,214,165,.85)');
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${h * .36}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('♪', w / 2, h / 2);
+}
+
+/* ================= static artwork ================= */
+function drawWallpaper() {
+  const c = $('wall').getContext('2d'), W = 1280, H = 720;
+  const g = c.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#1b2950'); g.addColorStop(.42, '#4c6493'); g.addColorStop(.7, '#d49f86'); g.addColorStop(1, '#efc39c');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const r = rng(3);
+  for (let i = 0; i < 90; i++) { c.fillStyle = `rgba(255,255,255,${.2 + r() * .6})`; const s = r() < .15 ? 2 : 1.2; c.fillRect(r() * W, 30 + r() * H * .35, s, s); }
+  const glow = c.createRadialGradient(880, 455, 10, 880, 455, 300);
+  glow.addColorStop(0, 'rgba(255,224,180,.75)'); glow.addColorStop(1, 'rgba(255,224,180,0)');
+  c.fillStyle = glow; c.fillRect(0, 0, W, H);
+  const layers = [[.6, 34, '#5a6b94', 1], [.69, 46, '#3d4b76', 2], [.8, 40, '#29355c', 3], [.91, 30, '#18203d', 4]];
+  for (const [base, amp, col, k] of layers) {
+    c.fillStyle = col; c.beginPath(); c.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8) {
+      const y = base * H + amp * (Math.sin(x * .004 * k + k * 1.7) * .6 + Math.sin(x * .011 + k) * .3 + Math.sin(x * .031 + k * 3) * .1);
+      c.lineTo(x, y);
+    }
+    c.lineTo(W, H); c.fill();
+  }
+}
+function drawRuler() {
+  const c = $('ruler').getContext('2d');
+  c.scale(2, 2);
+  c.fillStyle = '#1d2026'; c.fillRect(0, 0, 950, 20);
+  c.strokeStyle = '#4a505b'; c.fillStyle = '#868d99'; c.font = '9px "JetBrains Mono",Menlo,monospace'; c.lineWidth = 1;
+  for (let s = 0; s <= 23; s += .5) {
+    const x = 10 + s * PX + .5, big = s % 1 === 0;
+    c.beginPath(); c.moveTo(x, 20); c.lineTo(x, big ? 11 : 15); c.stroke();
+    if (s % 2 === 0) c.fillText(`00:${String(s).padStart(2, '0')}`, x + 3, 9);
+  }
+}
+const IMG = {};
+function makeAssets() {
+  const thumbs = { A: 'thA', B: 'thB', C: 'thC' };
+  for (const [k, id] of Object.entries(thumbs)) {
+    const cv = $(id).querySelector('canvas'), ctx = cv.getContext('2d');
+    SCENES[k](ctx, cv.width, cv.height, 2.5);
+    IMG[k] = cv.toDataURL();
+    const strip = document.createElement('canvas'); strip.width = 160; strip.height = 120;
+    const sc = strip.getContext('2d'); SCENES[k](sc, 160, 120, 2.5);
+    sc.fillStyle = 'rgba(0,0,0,.55)'; sc.fillRect(157, 0, 3, 120);
+    IMG[k + 'strip'] = strip.toDataURL();
+  }
+  const mc = $('thM').querySelector('canvas'); drawMusicThumb(mc.getContext('2d'), mc.width, mc.height); IMG.M = mc.toDataURL();
+  const wv = document.createElement('canvas'); wv.width = 240; wv.height = 92;
+  drawWave(wv.getContext('2d'), 240, 92, 9, 'rgba(98,226,180,.75)'); IMG.wave = wv.toDataURL();
+  const sh = $('sheetThumb').getContext('2d'); SCENES.A(sh, 256, 144, 2); drawTitle(sh, 256, 144, 'Clawd 的第一支 Vlog');
+}
+
+/* ================= choreography =================
+   Every move is appended in order; the builder records absolute times in T so the
+   rest of the scene (dock bounce, clips, export) reacts to what Clawd just did. */
+const T = {}, MOVES = [], BURSTS = [], SHAKES = [];
+const LAND = .8, CROUCH = .18, DESK = .85, APP = .5;
+const P = { t: 0, x: 540, y: -90, s: DESK, face: 1 };
+function push(type, d, to = {}, o = {}) {
+  const m = { type, d, t0: P.t, t1: P.t + d, x0: P.x, y0: P.y, s0: P.s,
+    x1: to.x ?? P.x, y1: to.y ?? P.y, s1: to.s ?? P.s, ...o };
+  m.face = o.face ?? (Math.abs(m.x1 - m.x0) > 1 ? Math.sign(m.x1 - m.x0) : P.face);
+  MOVES.push(m);
+  Object.assign(P, { t: m.t1, x: m.x1, y: m.y1, s: m.s1, face: m.face });
+  return m;
+}
+const mark = name => (T[name] = P.t);
+const wait = (d, o) => push('wait', d, {}, o);
+const waitUntil = (t, o) => wait(Math.max(.05, t - P.t), o);
+const walk = (d, x, o) => push('walk', d, { x }, o);
+function hop(d, x, y, o = {}) {
+  const m = push('hop', d, { x, y, s: o.s }, o);
+  m.land = m.t0 + d * LAND;
+  if (o.burst !== false) BURSTS.push({ t: m.land, x, y, s: m.s1, kind: o.burst || 'dust' });
+  return m;
+}
+function press(d = .5, o = {}) {
+  const m = push('press', d, {}, o);
+  m.hit = m.t0 + d * .6;
+  BURSTS.push({ t: m.hit, x: P.x, y: P.y, s: P.s, kind: 'ring' });
+  return m;
+}
+const grab = (d, o) => push('grab', d, {}, o);
+
+const SPOT = { A: [186, 116], B: [303, 116], C: [186, 212], M: [303, 212], X: [186, 312], T: [303, 312] };
+function fetch(id, dx, dy, h = 40) {
+  hop(.62, SPOT[id][0], SPOT[id][1], { h: 30 });
+  T['grab' + id] = P.t;
+  grab(.36, { carry: id });
+  const m = hop(.72, dx, dy, { h, carry: id, burst: 'snap' });
+  T['drop' + id] = m.land;
+}
+
+// 1 · 登场：从天而降，落在程序坞上
+wait(.35);
+{ const f = push('fall', .75, { x: 470, y: 648 }); f.land = f.t0 + .75 * .8;
+  BURSTS.push({ t: f.land, x: 470, y: 648, s: DESK, kind: 'dust' }); SHAKES.push({ t: f.land, a: 6 }); }
+wait(.45);
+wait(1.0, { arms: 'wave' });
+// 2 · 找到 ReelCut，踩下图标
+mark('walk0');
+walk(1.25, 632);
+wait(.35, { look: [1, 1] });
+{ const m = hop(.55, 704, 648, { h: 34, burst: 'ring' }); T.click = m.land; SHAKES.push({ t: T.click, a: 3 }); }
+wait(.25, { look: [0, 1] });
+hop(.55, 590, 648, { h: 40 });
+T.bounce = T.click + .45;
+T.winOpen = T.click + 1.4;
+waitUntil(T.winOpen + .95, { face: 1, look: [1, -1] });
+// 3 · 跳进软件
+mark('jump0');
+{ const m = hop(1.05, 300, 470, { s: APP, h: 150, burst: 'splash' }); T.inApp = m.land; SHAKES.push({ t: T.inApp, a: 4 }); }
+wait(.35, { look: [-1, -1] });
+// 4 · 把素材搬上时间线
+mark('grab0');
+fetch('A', 370, 470);
+fetch('B', 650, 470);
+fetch('C', 890, 470);
+fetch('M', 420, 534);
+// 5 · 刀片：在 5.5 秒处剪开
+mark('blade0');
+hop(.6, 178, 374, { h: 34 });
+T.bladeOn = press(.45).hit;
+{ const m = hop(.72, 410, 470, { h: 46, tool: true, face: 1 }); T.bladeLand = m.land; }
+wait(.25, { tool: true, face: 1, look: [1, 1] });
+{ const m = push('chop', .6, {}, { tool: true, face: 1 }); T.cut = m.t0 + .6 * .55; SHAKES.push({ t: T.cut, a: 2.5 }); }
+wait(.3, { face: 1, look: [1, 0] });
+// 6 · 踢掉多余的 2.5 秒，后面的片段补位
+mark('del0');
+{ const m = push('kick', .55, {}, { face: 1 }); T.del = m.t0 + .55 * .45;
+  BURSTS.push({ t: T.del, x: 482, y: 470, s: 1, kind: 'poof' }); }
+T.ripple = T.del + .2;
+wait(.75, { face: 1, look: [1, 0] });
+// 7 · 把音乐拖短
+mark('trim0');
+hop(.85, 1032, 534, { h: 56 });
+wait(.2, { arms: 'push', face: -1 });
+{ const m = walk(.85, 932, { arms: 'push', face: -1 }); T.trimA = m.t0; T.trimB = m.t1; }
+wait(.2, { face: -1 });
+// 8 · 转场
+mark('x0');
+fetch('X', 430, 470, 56);
+wait(.2);
+// 9 · 标题
+mark('title0');
+fetch('T', 280, 426, 40);
+wait(.15);
+{ const m = wait(1.8, { arms: 'type', look: [0, -1] }); T.type0 = m.t0 + .1; T.type1 = m.t1 - .25; }
+// 10 · 预览
+mark('play0');
+hop(.75, 640, 332, { h: 50 });
+T.play = press(.45).hit;
+T.playEnd = T.play + 3.6;
+waitUntil(T.playEnd + .35, { look: [0, -1], bob: true });
+// 11 · 导出
+mark('exp0');
+hop(.95, 1097, 46, { h: 56 });
+T.expClick = press(.45).hit;
+T.sheetIn = T.expClick + .1;
+wait(.3, { look: [-1, 1] });
+hop(.85, 782, 244, { h: 50 });
+T.expStart = press(.45).hit;
+T.expEnd = T.expStart + 3.2;
+T.fileFly = T.expEnd + .45;
+T.sheetOut = T.expEnd + 1.05;
+waitUntil(T.expEnd + .55, { tap: true, look: [-1, 0] });
+// 12 · 跳回桌面庆祝
+mark('out0');
+{ const m = hop(1.1, 760, 648, { s: DESK, h: 90 }); T.out = m.land; SHAKES.push({ t: T.out, a: 5 }); }
+T.notif = T.out + .15;
+{ const m = push('cheer', 1.4, {}, { face: 1 });
+  BURSTS.push({ t: m.t0 + .12, x: 760, y: 610, s: 1, kind: 'confetti' }); }
+wait(2.6, { face: 1, squint: true, look: [1, -1] });
+const TOTAL = P.t;
+
+const CAM = [
+  [0, 1, 640, 360], [T.jump0 + .15, 1, 640, 360], [T.inApp + .25, 1.3, 590, 318],
+  [T.exp0, 1.3, 590, 318], [T.exp0 + .9, 1.18, 700, 320], [T.out0, 1.18, 700, 320], [T.out0 + 1.1, 1, 640, 360],
+];
+const PH = [
+  [0, 0], [T.bladeLand - .3, 0], [T.bladeLand + .1, 5.5], [T.del + .6, 5.5], [T.del + 1, 0],
+  [T.type0 - .1, 0], [T.type0 + .2, 1.2], [T.play, 1.2], [T.play + .08, 0], [T.playEnd, 17.5],
+  [T.expStart, 17.5], [T.expStart + .05, 0], [T.expEnd, 17.5], [T.expEnd + .6, 17.5], [T.expEnd + .9, 0],
+];
+const CAPS = [
+  [0, 'Clawd 落在了 Mac 桌面的程序坞上'],
+  [T.walk0, '它在程序坞里找到了剪辑软件 ReelCut'],
+  [T.click - .15, '踩一下图标，ReelCut 开始启动'],
+  [T.jump0, 'Clawd 纵身一跃，跳进了软件里'],
+  [T.grab0, '把三段素材和背景音乐依次搬上时间线'],
+  [T.blade0, '拿起刀片，在 00:00:05:15 处剪一刀'],
+  [T.del0, '多出来的 2.5 秒踢掉，后面的片段自动补位'],
+  [T.trim0, '把背景音乐拖短，和画面一起结束'],
+  [T.x0, '在两段画面之间放一个交叉溶解'],
+  [T.title0, '加上标题：Clawd 的第一支 Vlog'],
+  [T.play0, '按下播放，从头看一遍成片'],
+  [T.exp0, '满意了，导出：MP4 · H.264 · 1080p'],
+  [T.expStart, '正在渲染 17.5 秒的成片'],
+  [T.expEnd, '导出完成，clawd_vlog.mp4 已存到桌面'],
+  [T.out0, 'Clawd 跳回桌面，庆祝第一支作品出炉'],
+];
+const CHAPTERS = [
+  [0, '登场'], [T.walk0, '打开软件'], [T.jump0, '跳进软件'], [T.grab0, '搬素材'],
+  [T.blade0, '剪切与修剪'], [T.x0, '转场和标题'], [T.play0, '预览'], [T.exp0, '导出'],
+];
+
+/* ================= Clawd pose (pure function of time) ================= */
+function landing(o, k, m) {
+  o.x = m.x1; o.y = m.y1; o.s = m.s1;
+  const sq = .26 * Math.exp(-k * 4) * Math.cos(k * 9);
+  o.sy = 1 - sq; o.sx = 1 + sq * .7;
+}
+function pose(t) {
+  let m = MOVES[MOVES.length - 1];
+  for (const mv of MOVES) if (t < mv.t1) { m = mv; break; }
+  const p = clamp((t - m.t0) / m.d);
+  const o = { x: m.x0, y: m.y0, s: m.s0, sx: 1, sy: 1, rot: 0, face: m.face, legs: null, air: false,
+    arms: m.arms || 'down', look: m.look || [0, 0], carry: null, lift: 1, tool: !!m.tool, toolRot: 20,
+    squint: !!m.squint, tap: !!m.tap, kickLeg: false };
+  const breathe = () => { const b = Math.sin(t * 3.4); o.sy = 1 + .035 * b; o.sx = 1 - .025 * b; };
+  switch (m.type) {
+    case 'wait':
+      breathe();
+      if (m.bob) o.y -= Math.max(0, Math.sin(t * 7)) * 2.5 * o.s;
+      break;
+    case 'walk': {
+      const k = ease.sine(p) * .3 + p * .7;
+      o.x = lerp(m.x0, m.x1, k);
+      o.legs = (t - m.t0) * 15;
+      o.y -= Math.abs(Math.sin(o.legs)) * 3 * o.s;
+      break;
+    }
+    case 'fall':
+      if (p < .8) {
+        const q = p / .8;
+        o.x = lerp(m.x0, m.x1, q); o.y = lerp(m.y0, m.y1, q * q);
+        o.sy = 1.16; o.sx = .9; o.air = true; o.arms = 'up';
+      } else landing(o, (p - .8) / .2, m);
+      break;
+    case 'hop': {
+      if (p < CROUCH) {
+        const k = Math.sin(p / CROUCH * PI / 2); o.sy = 1 - .2 * k; o.sx = 1 + .14 * k;
+      } else if (p < LAND) {
+        const q = (p - CROUCH) / (LAND - CROUCH);
+        const apex = Math.min(m.y0, m.y1) - (m.h ?? 40);
+        const D = m.y0 - apex, E = m.y1 - m.y0;
+        const B = -2 * D - 2 * Math.sqrt(D * (D + E)), A = E - B;
+        o.y = m.y0 + B * q + A * q * q;
+        o.x = lerp(m.x0, m.x1, q);
+        o.s = lerp(m.s0, m.s1, ease.inOut(q));
+        const vy = Math.abs(2 * A * q + B) / (Math.abs(B) + 1);
+        o.sy = 1 + .16 * vy; o.sx = 1 - .1 * vy;
+        if (Math.abs(m.x1 - m.x0) > 4) o.rot = m.face * 12 * (.5 - q);
+        o.air = true;
+      } else landing(o, (p - LAND) / (1 - LAND), m);
+      if (m.carry) o.carry = p < LAND + .02 ? m.carry : null;
+      if (o.air && !m.carry && !m.tool) o.arms = 'up';
+      break;
+    }
+    case 'press':
+      if (p < .25) { const k = p / .25; o.sy = 1 - .18 * k; o.sx = 1 + .12 * k; }
+      else if (p < .55) { o.y -= Math.sin((p - .25) / .3 * PI / 2) * 16 * o.s; o.sy = 1.08; o.sx = .94; o.air = true; o.arms = 'up'; }
+      else if (p < .6) { o.y -= (1 - (p - .55) / .05) * 16 * o.s; o.air = true; }
+      else { const k = (p - .6) / .4, sq = .24 * Math.exp(-k * 4) * Math.cos(k * 9); o.sy = 1 - sq; o.sx = 1 + sq * .7; }
+      break;
+    case 'grab': {
+      o.carry = m.carry; o.lift = ease.out(inv(.15, .8, p)); o.arms = p < .25 ? 'down' : 'up';
+      const k = Math.sin(p * PI); o.sy = 1 - .12 * k * (p < .5 ? 1 : -.5); o.sx = 1 + .08 * k;
+      break;
+    }
+    case 'chop':
+      o.arms = p < .55 ? 'raise' : 'push';
+      o.toolRot = p < .55 ? lerp(20, -50, ease.out(p / .55)) : lerp(-50, 75, ease.out(inv(.55, .7, p)));
+      if (p < .55) { o.sy = 1 + .06 * (p / .55); o.sx = 1 - .04 * (p / .55); }
+      else { const k = (p - .55) / .45, sq = .2 * Math.exp(-k * 5) * Math.cos(k * 10); o.sy = 1 - sq; o.sx = 1 + sq * .7; }
+      break;
+    case 'kick':
+      if (p < .4) { o.rot = -8 * o.face * ease.out(p / .4); o.sy = .94; }
+      else { const k = inv(.4, 1, p); o.rot = lerp(9, 0, ease.out(k)) * o.face; o.kickLeg = p < .8; }
+      o.arms = 'push';
+      break;
+    case 'cheer': {
+      const q = (p * 2) % 1;
+      o.y -= Math.sin(PI * q) * 34 * o.s;
+      o.air = q > .08 && q < .92; o.arms = 'up'; o.squint = true;
+      o.sy = o.air ? 1.08 : .86; o.sx = o.air ? .95 : 1.1;
+      break;
+    }
+  }
+  if (m.carry && m.type !== 'grab' && m.type !== 'hop') o.carry = m.carry;
+  if (o.carry && o.arms === 'down') o.arms = 'up';
+  return o;
+}
+
+/* ================= Clawd rendering ================= */
+const C = {
+  el: $('clawd'), svg: document.querySelector('#clawd svg.body'), carry: $('carry'), tool: $('tool'),
+  armL: $('armL'), armR: $('armR'), eyeL: $('eyeL'), eyeR: $('eyeR'),
+  legs: [0, 1, 2, 3].map(i => $('leg' + i)),
+};
+const LEGX = [4, 7, 13, 16];
+const setR = (el, x, y, w, h) => { el.setAttribute('x', x); el.setAttribute('y', y); el.setAttribute('width', w); el.setAttribute('height', h); };
+let carryShown = null;
+function renderClawd(t, o) {
+  C.el.style.transform = `translate(${o.x.toFixed(2)}px,${o.y.toFixed(2)}px) rotate(${o.rot.toFixed(2)}deg) scale(${(o.s * o.sx).toFixed(4)},${(o.s * o.sy).toFixed(4)})`;
+  C.svg.style.transform = o.face < 0 ? 'scaleX(-1)' : '';
+  // arms
+  const w = Math.sin(t * 13) > 0;
+  switch (o.arms) {
+    case 'up': setR(C.armL, 1, -3, 2, 7); setR(C.armR, 19, -3, 2, 7); break;
+    case 'wave': setR(C.armL, 0, 4, 3, 3); w ? setR(C.armR, 19, -3, 2, 7) : setR(C.armR, 19, 1, 3, 3); break;
+    case 'type': {
+      const a = Math.sin(t * 22) > 0;
+      setR(C.armL, 0, a ? 3 : 5, 3, 2); setR(C.armR, 19, a ? 5 : 3, 3, 2); break;
+    }
+    case 'push': setR(C.armL, 1, 4, 2, 3); setR(C.armR, 19, 4, 5, 3); break;
+    case 'raise': setR(C.armL, 0, 4, 3, 3); setR(C.armR, 19, -2, 2, 6); break;
+    default: setR(C.armL, 0, 4, 3, 3); setR(C.armR, 19, 4, 3, 3);
+  }
+  // legs
+  C.legs.forEach((leg, i) => {
+    let y = 9, h = 4, x = LEGX[i], wd = 2;
+    if (o.air) h = 3;
+    else if (o.legs !== null && (Math.sin(o.legs) > 0) === (i % 2 === 0)) { h = 3; }
+    if (o.tap && i === 0 && Math.sin(t * 9) > .3) h = 3;
+    if (o.kickLeg && i === 3) { x = 17; y = 8.5; wd = 4; h = 2; }
+    setR(leg, x, y, wd, h);
+  });
+  // eyes
+  const blink = ((t + .3) % 3.3) < .12 || ((t + 1.9) % 5.1) < .1;
+  const dx = o.look[0] * .8 * (o.face < 0 ? -1 : 1), dy = o.look[1] * .7;
+  const eh = o.squint ? 1 : blink ? .5 : 3, ey = 2 + dy + (3 - eh) / 2;
+  setR(C.eyeL, 6 + dx, ey, 2, eh); setR(C.eyeR, 14 + dx, ey, 2, eh);
+  // carried item
+  if (o.carry !== carryShown) {
+    carryShown = o.carry;
+    const c = C.carry;
+    c.className = ''; c.textContent = ''; c.style.backgroundImage = ''; c.style.background = '';
+    if (o.carry === 'X' || o.carry === 'T') {
+      c.className = 'chip';
+      c.textContent = o.carry === 'X' ? '⋈ 溶解' : 'T 标题';
+      c.style.background = o.carry === 'X' ? '#e9edf3' : '#e0a03a';
+      c.style.color = o.carry === 'X' ? '#1d2230' : '#2b1a02';
+    } else if (o.carry) {
+      c.style.backgroundImage = `url(${IMG[o.carry]})`;
+    }
+    c.style.display = o.carry ? (c.className === 'chip' ? 'grid' : 'block') : 'none';
+  }
+  if (o.carry) {
+    C.carry.style.transform = `translateY(${((1 - o.lift) * 56).toFixed(1)}px) rotate(${(Math.sin(t * 6) * 3).toFixed(1)}deg)`;
+    C.carry.style.opacity = o.lift.toFixed(2);
+  }
+  // blade
+  C.tool.style.display = o.tool ? 'block' : 'none';
+  if (o.tool) {
+    C.tool.style.left = o.face < 0 ? '-70px' : '30px';
+    C.tool.style.transform = `scaleX(${o.face}) rotate(${o.toolRot}deg)`;
+  }
+}
+
+/* ================= particles ================= */
+const FX = $('fx'), pool = [];
+const CONF = ['#E8875F', '#ffd166', '#4cc9f0', '#80ed99', '#f72585', '#ffffff'];
+function particlesAt(t) {
+  const out = [];
+  for (const b of BURSTS) {
+    const dt = t - b.t;
+    if (dt < 0) continue;
+    const r = rng(Math.round(b.t * 1000) + b.x);
+    const s = b.s;
+    switch (b.kind) {
+      case 'dust': {
+        if (dt > .55) break;
+        const k = dt / .55;
+        for (let i = 0; i < 8; i++) {
+          const dir = i % 2 ? 1 : -1, sp = (24 + r() * 46) * s, up = (8 + r() * 22) * s, sz = (10 + r() * 10) * s;
+          out.push({ x: b.x + dir * (14 * s + sp * ease.out(k)), y: b.y - 4 * s - up * ease.out(k), w: sz, h: sz, br: '50%',
+            bg: 'rgba(255,248,240,.8)', o: (1 - k) * .9, sc: .6 + k * .8 });
+        }
+        break;
+      }
+      case 'ring': {
+        if (dt > .45) break;
+        const k = dt / .45, d = (12 + 70 * ease.out(k)) * s;
+        out.push({ x: b.x, y: b.y, w: d, h: d * .45, br: '50%', bd: `${Math.max(1.5, 3 * s)}px solid rgba(255,255,255,.9)`, o: 1 - k });
+        break;
+      }
+      case 'snap': {
+        if (dt > .45) break;
+        const k = dt / .45;
+        for (let i = 0; i < 10; i++) {
+          const a = PI + (i / 9) * PI, sp = (30 + r() * 30) * ease.out(k);
+          out.push({ x: b.x + Math.cos(a) * sp, y: b.y + Math.sin(a) * sp * .8, w: 5, h: 5, bg: i % 2 ? '#8fb8ff' : '#ffffff', o: 1 - k, rot: k * 200 });
+        }
+        const d = 10 + 60 * ease.out(k);
+        out.push({ x: b.x, y: b.y, w: d, h: d * .4, br: '50%', bd: '2px solid rgba(143,184,255,.9)', o: 1 - k });
+        break;
+      }
+      case 'splash': {
+        if (dt > .7) break;
+        const k = dt / .7;
+        for (let i = 0; i < 14; i++) {
+          const a = PI + (i / 13) * PI + (r() - .5) * .2, sp = (40 + r() * 50) * ease.out(k);
+          out.push({ x: b.x + Math.cos(a) * sp, y: b.y + Math.sin(a) * sp, w: 7, h: 7, rot: 45 + k * 180,
+            bg: i % 3 ? '#E8875F' : '#ffe6c7', o: 1 - k });
+        }
+        for (const lag of [0, .12]) {
+          const kk = clamp((dt - lag) / .5), d = 10 + 120 * ease.out(kk);
+          if (kk > 0 && kk < 1) out.push({ x: b.x, y: b.y, w: d, h: d * .35, br: '50%', bd: '2.5px solid rgba(255,214,180,.9)', o: 1 - kk });
+        }
+        break;
+      }
+      case 'poof': {
+        if (dt > .6) break;
+        const k = dt / .6;
+        for (let i = 0; i < 12; i++) {
+          const a = r() * PI * 2, sp = (14 + r() * 40) * ease.out(k), sz = 10 + r() * 14;
+          out.push({ x: b.x + 40 * k + Math.cos(a) * sp, y: b.y - 30 * k + Math.sin(a) * sp, w: sz, h: sz, br: '50%',
+            bg: 'rgba(200,206,216,.85)', o: (1 - k), sc: .5 + k });
+        }
+        break;
+      }
+      case 'confetti': {
+        if (dt > 2.6) break;
+        for (let i = 0; i < 70; i++) {
+          const a = -PI / 2 + (r() - .5) * 2.2, v = 260 + r() * 300, spin = (r() - .5) * 1400;
+          const x = b.x + Math.cos(a) * v * dt * .9 + Math.sin(dt * 5 + i) * 10;
+          const y = b.y + Math.sin(a) * v * dt + 330 * dt * dt;
+          out.push({ x, y, w: 6 + r() * 6, h: 9 + r() * 6, bg: CONF[i % CONF.length], rot: spin * dt, o: clamp((2.6 - dt) / .6) });
+        }
+        break;
+      }
+    }
+  }
+  return out;
+}
+function renderFx(t) {
+  const ps = particlesAt(t);
+  while (pool.length < ps.length) { const i = document.createElement('i'); FX.appendChild(i); pool.push(i); }
+  pool.forEach((el, n) => {
+    const q = ps[n];
+    if (!q) { if (el.style.display !== 'none') el.style.display = 'none'; return; }
+    el.style.cssText = `display:block;width:${q.w}px;height:${q.h}px;border-radius:${q.br || '1px'};` +
+      `background:${q.bg || 'transparent'};border:${q.bd || 'none'};box-sizing:border-box;opacity:${clamp(q.o).toFixed(3)};` +
+      `transform:translate(${(q.x - q.w / 2).toFixed(1)}px,${(q.y - q.h / 2).toFixed(1)}px) rotate(${(q.rot || 0).toFixed(1)}deg) scale(${q.sc || 1})`;
+  });
+}
+
+/* ================= camera ================= */
+function keyed(list, t, fn) {
+  if (t <= list[0][0]) return list[0];
+  for (let i = 1; i < list.length; i++) {
+    if (t <= list[i][0]) { const a = list[i - 1], b = list[i], k = fn(inv(a[0], b[0], t)); return a.map((v, j) => lerp(v, b[j], k)); }
+  }
+  return list[list.length - 1];
+}
+function renderCamera(t) {
+  let [, z, cx, cy] = keyed(CAM, t, ease.inOut);
+  cx = clamp(cx, 640 / z, 1280 - 640 / z); cy = clamp(cy, 360 / z, 720 - 360 / z);
+  let sx = 0, sy = 0;
+  for (const s of SHAKES) {
+    const dt = t - s.t;
+    if (dt >= 0 && dt < .35) { const a = s.a * (1 - dt / .35); sx += a * Math.sin(dt * 70); sy += a * Math.cos(dt * 53); }
+  }
+  $('world').style.transform = `translate(${(640 - cx * z + sx).toFixed(2)}px,${(360 - cy * z + sy).toFixed(2)}px) scale(${z.toFixed(4)})`;
+}
+
+/* ================= the edit itself, as a function of time ================= */
+const TITLE = Array.from('Clawd 的第一支 Vlog');
+function typedTitle(t) { return TITLE.slice(0, Math.round(inv(T.type0, T.type1, t) * TITLE.length)).join(''); }
+function edl(t) {
+  const shift = 2.5 * ease.inOut(inv(T.ripple, T.ripple + .55, t));
+  const clips = [];
+  if (t >= T.dropA) clips.push({ id: 'A', start: 0, dur: t < T.cut ? 8 : 5.5, src: 0 });
+  if (t >= T.cut && t < T.del) clips.push({ id: 'A', start: 5.5, dur: 2.5, src: 5.5 });
+  if (t >= T.dropB) clips.push({ id: 'B', start: 8 - shift, dur: 6, src: 0 });
+  if (t >= T.dropC) clips.push({ id: 'C', start: 14 - shift, dur: 6, src: 0 });
+  let end = 0; for (const c of clips) end = Math.max(end, c.start + c.dur);
+  return { clips, end, xfade: t >= T.dropX, title: t >= T.dropT };
+}
+
+/* ================= scene state ================= */
+const CL = {};
+function mkClip(id, cls, label, bg, bgx = 0) {
+  const d = document.createElement('div');
+  d.className = 'clip ' + cls;
+  if (bg) { d.style.backgroundImage = `url(${bg})`; d.style.backgroundPositionX = bgx + 'px'; }
+  const s = document.createElement('span'); s.textContent = label; d.appendChild(s);
+  $('clips').appendChild(d); CL[id] = d;
+}
+function popIn(el, t, t0, pre = '') {
+  if (t < t0) { el.style.opacity = 0; return false; }
+  const k = clamp((t - t0) / .32);
+  el.style.opacity = 1;
+  el.style.transform = `${pre} scaleY(${lerp(.35, 1, ease.back(k)).toFixed(3)})`;
+  el.style.filter = k < 1 ? `brightness(${(1 + (1 - k) * .9).toFixed(2)})` : '';
+  return true;
+}
+function pressAnim(el, t, at) {
+  const d = t - at, k = d >= 0 && d < .28 ? 1 - d / .28 : 0;
+  el.style.transform = k ? `scaleY(${(1 - .22 * k).toFixed(3)})` : '';
+  el.style.filter = k ? `brightness(${(1 + .5 * k).toFixed(2)})` : '';
+}
+const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
+
+function renderDock(t) {
+  const svg = $('icReel').querySelector('svg');
+  let y = 0, sc = 1;
+  const dp = t - T.click;
+  if (dp >= 0 && dp < .22) sc = 1 - .2 * (1 - dp / .22);
+  const u = t - T.bounce;
+  if (u >= 0 && u < 1) { const n = Math.floor(u / .5), f = (u % .5) / .5; y = -Math.sin(PI * f) * 24 * (n ? .6 : 1); }
+  svg.style.transformOrigin = '50% 100%';
+  svg.style.transform = `translateY(${y.toFixed(1)}px) scaleY(${sc.toFixed(3)})`;
+  $('reelDot').style.opacity = t >= T.click + .2 ? 1 : 0;
+  setText($('menuApp'), t >= T.winOpen ? 'ReelCut' : '访达');
+}
+function renderWindow(t) {
+  const win = $('win');
+  if (t < T.winOpen) { win.style.visibility = 'hidden'; return; }
+  win.style.visibility = 'visible';
+  const k = ease.out(inv(T.winOpen, T.winOpen + .5, t));
+  win.style.transform = `translate(${(64 * (1 - k)).toFixed(1)}px,${(350 * (1 - k)).toFixed(1)}px) scale(${lerp(.05, 1, k).toFixed(4)})`;
+  win.style.opacity = clamp(k * 3);
+  $('splash').style.opacity = t < T.winOpen + 1.1 ? 1 : 1 - inv(T.winOpen + 1.1, T.winOpen + 1.4, t);
+}
+function renderTimeline(t, o, ph) {
+  const shift = 2.5 * ease.inOut(inv(T.ripple, T.ripple + .55, t));
+  if (popIn(CL.A, t, T.dropA)) { CL.A.style.left = LANE0 + 'px'; CL.A.style.width = (t < T.cut ? 8 : 5.5) * PX + 'px'; }
+  if (t >= T.cut && t < T.del + .5) {
+    const k = ease.out(inv(T.del, T.del + .5, t));
+    Object.assign(CL.A2.style, { opacity: 1 - k, left: LANE0 + 5.5 * PX + 'px', width: 2.5 * PX + 'px',
+      transform: `translate(${(k * 80).toFixed(1)}px,${(-k * 70).toFixed(1)}px) rotate(${(k * 30).toFixed(1)}deg)` });
+  } else CL.A2.style.opacity = 0;
+  if (popIn(CL.B, t, T.dropB)) Object.assign(CL.B.style, { left: LANE0 + (8 - shift) * PX + 'px', width: 6 * PX + 'px' });
+  if (popIn(CL.C, t, T.dropC)) Object.assign(CL.C.style, { left: LANE0 + (14 - shift) * PX + 'px', width: 6 * PX + 'px' });
+  if (popIn(CL.M, t, T.dropM)) {
+    const trimming = t > T.trimA && t < T.trimB;
+    const dur = t >= T.trimB ? 17.5 : trimming ? clamp((o.x - 22 - WX - LANE0) / PX, 17.5, 20) : 20;
+    Object.assign(CL.M.style, { left: LANE0 + 'px', width: dur * PX + 'px', boxShadow: t > T.trimA - .25 && t < T.trimB + .2 ? 'inset -4px 0 0 #ffd166' : '' });
+  }
+  if (popIn(CL.T, t, T.dropT)) {
+    Object.assign(CL.T.style, { left: LANE0 + 'px', width: 3.5 * PX + 'px' });
+    setText(CL.T.firstChild, typedTitle(t) || '标题');
+  }
+  const xf = $('xfade');
+  if (popIn(xf, t, T.dropX)) xf.style.left = LANE0 + 5.5 * PX - 20 + 'px';
+  const cl = $('cutline');
+  cl.style.left = LANE0 + 5.5 * PX - 1 + 'px';
+  cl.style.opacity = t >= T.cut ? 1 - inv(T.cut, T.cut + .45, t) : 0;
+  $('playhead').style.left = (LANE0 + ph * PX - 1).toFixed(1) + 'px';
+}
+
+const vctx = $('viewer').getContext('2d'), VW = 832, VH = 468;
+function renderViewer(t, ph, ed) {
+  vctx.globalAlpha = 1; vctx.fillStyle = '#000'; vctx.fillRect(0, 0, VW, VH);
+  if (!ed.clips.length) {
+    vctx.fillStyle = '#5d636e'; vctx.font = '500 26px "Noto Sans SC","PingFang SC",sans-serif';
+    vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
+    vctx.fillText('把素材拖到时间线，开始剪辑', VW / 2, VH / 2);
+    return;
+  }
+  let c = ed.clips.find(c => ph >= c.start && ph < c.start + c.dur);
+  if (!c && ph >= ed.end - .01) c = ed.clips.reduce((a, b) => (b.start + b.dur > a.start + a.dur ? b : a));
+  if (!c) return;   // a gap in the edit plays as black
+  SCENES[c.id](vctx, VW, VH, c.src + clamp(ph - c.start, 0, c.dur));
+  if (ed.xfade && ph >= 5 && ph < 6 && ed.clips.some(c => c.id === 'B')) {
+    if (c.id === 'B') { vctx.globalAlpha = 1 - inv(5, 6, ph); SCENES.A(vctx, VW, VH, ph); }
+    else { vctx.globalAlpha = inv(5, 6, ph); SCENES.B(vctx, VW, VH, Math.max(0, ph - 5.5)); }
+    vctx.globalAlpha = 1;
+  }
+  if (ed.title && ph < 3.5) {
+    const caret = t >= T.dropT && t < T.type1 + .5 && Math.sin(t * 10) > 0;
+    drawTitle(vctx, VW, VH, typedTitle(t), caret);
+  }
+}
+
+const SEL = [];
+let selIdx = -2;
+function renderPanels(t, ph, ed) {
+  let i = -1; SEL.forEach((s, j) => { if (t >= s[0]) i = j; });
+  if (i !== selIdx) {
+    selIdx = i;
+    const v = i < 0 ? ['未选择片段', '—', '—', '—'] : SEL[i][1];
+    setText($('inspName'), v[0]); setText($('inspDur'), v[1]); setText($('inspRes'), v[2]); setText($('inspFps'), v[3]);
+  }
+  setText($('tcNow'), tc(ph));
+  setText($('tcDur'), tc(ed.end));
+  const playingIn = t >= T.play && t < T.playEnd;
+  $('playGlyph').firstElementChild.setAttribute('d', playingIn ? 'M2 1h3v10H2zM7 1h3v10H7z' : 'M2 1 11 6 2 11z');
+  pressAnim($('playBtnApp'), t, T.play);
+  pressAnim($('exportBtn'), t, T.expClick);
+  for (const id of ['A', 'B', 'C', 'M']) $('th' + id).classList.toggle('sel', t >= T['grab' + id] && t < T['drop' + id]);
+  $('chipX').classList.toggle('sel', t >= T.grabX && t < T.dropX);
+  $('chipT').classList.toggle('sel', t >= T.grabT && t < T.dropT);
+  const blade = t >= T.bladeOn && t < T.del;
+  $('toolBlade').classList.toggle('on', blade);
+  $('toolSel').classList.toggle('on', !blade);
+}
+function renderExport(t) {
+  const sheet = $('sheet');
+  const v = ease.out(inv(T.sheetIn, T.sheetIn + .35, t)) * (1 - ease.inOut(inv(T.sheetOut, T.sheetOut + .35, t)));
+  sheet.style.opacity = v > 0 ? 1 : 0;
+  sheet.style.transform = `scaleY(${v.toFixed(3)})`;
+  if (v <= 0) return;
+  const started = t >= T.expStart, done = t >= T.expEnd;
+  const pp = inv(T.expStart, T.expEnd, t), shown = Math.floor((ease.sine(pp) * .3 + pp * .7) * 100);
+  $('prog').style.opacity = started ? 1 : 0;
+  setText($('progTxt'), done ? '已存到 桌面' : `正在导出… 剩余约 ${Math.max(1, Math.ceil((1 - pp) * 3))} 秒`);
+  setText($('progPct'), shown + '%');
+  const bar = $('progBar');
+  bar.style.width = shown + '%';
+  bar.style.background = done ? '#22c55e' : '#3b82f6';
+  const go = $('sheetGo');
+  setText(go, !started ? '导出' : done ? '完成 ✓' : '导出中');
+  go.style.background = done ? '#22c55e' : started ? '#2c5fb8' : '#3b82f6';
+  pressAnim(go, t, T.expStart);
+}
+function renderDesktop(t) {
+  const fly = $('flyFile'), fk = inv(T.fileFly, T.fileFly + .9, t), fe = ease.inOut(fk);
+  if (fk > 0 && fk < 1) {
+    const x = lerp(498, 1174, fe), y = lerp(134, 128, fe) - Math.sin(PI * fe) * 60;
+    fly.style.opacity = 1;
+    fly.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${((1 - fe) * -20).toFixed(1)}deg) scale(${lerp(.8, 1, fe).toFixed(3)})`;
+  } else fly.style.opacity = 0;
+  const df = $('deskFile'), landed = t >= T.fileFly + .9;
+  df.style.opacity = landed ? 1 : 0;
+  df.style.transform = landed ? `scale(${lerp(.6, 1, ease.back(inv(T.fileFly + .9, T.fileFly + 1.2, t))).toFixed(3)})` : '';
+  const nk = ease.out(inv(T.notif, T.notif + .45, t)), n = $('notif');
+  n.style.opacity = nk;
+  n.style.transform = `translateX(${((1 - nk) * 380).toFixed(1)}px)`;
+}
+
+/* ================= captions, chapters, player ================= */
+const capEl = $('caption'), chapList = $('chapters'), scrub = $('scrub');
+let capIdx = -1, chapIdx = -1;
+const fmtS = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function renderCaption(t) {
+  let i = 0; CAPS.forEach((c, j) => { if (t >= c[0]) i = j; });
+  if (i !== capIdx) {
+    capIdx = i;
+    capEl.innerHTML = `<span class="step">${String(i + 1).padStart(2, '0')}/${CAPS.length}</span>`;
+    capEl.appendChild(document.createTextNode(CAPS[i][1]));
+  }
+  let c = 0; CHAPTERS.forEach((ch, j) => { if (t >= ch[0]) c = j; });
+  if (c !== chapIdx) {
+    chapIdx = c;
+    [...chapList.querySelectorAll('.chap')].forEach((b, j) => { b.classList.toggle('on', j === c); b.setAttribute('aria-current', j === c ? 'step' : 'false'); });
+  }
+}
+
+let t = 0, playing = true, speed = 1, last = performance.now(), holdUntil = 0, dragging = false;
+function render(time) {
+  const o = pose(time);
+  const ph = keyed(PH, time, k => k)[1];
+  const ed = edl(time);
+  renderCamera(time);
+  renderDock(time);
+  renderWindow(time);
+  if (time >= T.winOpen) { renderTimeline(time, o, ph); renderViewer(time, ph, ed); renderPanels(time, ph, ed); }
+  renderExport(time);
+  renderDesktop(time);
+  renderClawd(time, o);
+  renderFx(time);
+  renderCaption(time);
+  if (!dragging) scrub.value = time.toFixed(2);
+  setText($('timeTxt'), `${time.toFixed(1)} / ${TOTAL.toFixed(1)} 秒`);
+}
+function setPlaying(v) {
+  playing = v;
+  $('playIcon').firstElementChild.setAttribute('d', v ? 'M4 2h3v12H4zM9 2h3v12H9z' : 'M4 2 14 8 4 14z');
+  setText($('playLbl'), v ? '暂停' : '播放');
+  $('playBtn').setAttribute('aria-label', v ? '暂停' : '播放');
+  last = performance.now();
+}
+function frame(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (playing && !dragging) {
+    if (t < TOTAL) t = Math.min(TOTAL, t + dt * speed);
+    else if (!holdUntil) holdUntil = now + 900;
+    else if (now > holdUntil) { t = 0; holdUntil = 0; }
+  }
+  render(t);
+  requestAnimationFrame(frame);
+}
+
+function init() {
+  drawWallpaper(); drawRuler(); makeAssets();
+  mkClip('A', 'v', '海边日落.mov', IMG.Astrip);
+  mkClip('A2', 'v', '海边日落.mov', IMG.Astrip, -5.5 * PX);
+  mkClip('B', 'v', '城市夜景.mov', IMG.Bstrip);
+  mkClip('C', 'v', '山间云海.mov', IMG.Cstrip);
+  mkClip('M', 'a', '轻快 BGM.m4a', IMG.wave);
+  mkClip('T', 't', '标题');
+  SEL.push(
+    [T.dropA, ['海边日落.mov', tc(8), '1920×1080', '30 fps']],
+    [T.dropB, ['城市夜景.mov', tc(6), '1920×1080', '30 fps']],
+    [T.dropC, ['山间云海.mov', tc(6), '1920×1080', '30 fps']],
+    [T.dropM, ['轻快 BGM.m4a', tc(20), '立体声', '—']],
+    [T.cut, ['海边日落.mov', tc(5.5), '1920×1080', '30 fps']],
+    [T.trimA, ['轻快 BGM.m4a', tc(17.5), '立体声', '—']],
+    [T.dropX, ['交叉溶解', tc(1), '—', '—']],
+    [T.dropT, ['标题', tc(3.5), '1920×1080', '30 fps']],
+  );
+  BURSTS.push({ t: T.fileFly + .9, x: 1200, y: 182, s: 1, kind: 'ring' });
+
+  CHAPTERS.forEach(([ct, name], i) => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.className = 'chap'; b.type = 'button';
+    b.innerHTML = `<b>${fmtS(ct)}</b>`; b.appendChild(document.createTextNode(name));
+    b.addEventListener('click', () => { t = ct; holdUntil = 0; setPlaying(true); });
+    li.appendChild(b); chapList.appendChild(li);
+    if (i) { const tick = document.createElement('i'); tick.style.left = `calc(${(ct / TOTAL * 100).toFixed(2)}% - 1px)`; $('ticks').appendChild(tick); }
+  });
+  scrub.max = TOTAL.toFixed(2);
+  scrub.addEventListener('pointerdown', () => { dragging = true; });
+  addEventListener('pointerup', () => { dragging = false; last = performance.now(); });
+  scrub.addEventListener('input', () => { t = +scrub.value; holdUntil = 0; render(t); });
+  scrub.addEventListener('change', () => { dragging = false; });
+  $('playBtn').addEventListener('click', () => { if (t >= TOTAL) t = 0; setPlaying(!playing); });
+  $('restartBtn').addEventListener('click', () => { t = 0; holdUntil = 0; setPlaying(true); });
+  const SPEEDS = [1, 1.5, 2, .5];
+  $('speedBtn').addEventListener('click', () => {
+    speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+    setText($('speedBtn'), speed + '×');
+  });
+  addEventListener('keydown', e => {
+    if (e.code !== 'Space' || e.target.closest('button,input')) return;
+    e.preventDefault(); setPlaying(!playing);
+  });
+
+  const vp = $('viewport'), stage = $('stage');
+  const fit = () => { stage.style.transform = `scale(${vp.clientWidth / 1280})`; };
+  new ResizeObserver(fit).observe(vp); fit();
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { t = T.play + 1.6; setPlaying(false); }
+  window.__clawdSeek = v => { t = v; setPlaying(false); render(t); return { TOTAL, T }; };
+  render(t);
+  requestAnimationFrame(frame);
+}
+const fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready.catch(() => {}) : Promise.resolve();
+Promise.race([fontsReady, new Promise(r => setTimeout(r, 1200))]).then(init);
+})();
+</script>
